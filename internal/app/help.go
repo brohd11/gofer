@@ -44,7 +44,7 @@ func (s *browseScreen) helpText() string {
 	// The two notes lead rather than close the page: they are the questions a keys list
 	// cannot answer, and they must not sit below a fold on a short terminal.
 	b.WriteString("the view below starts from ~/.gofer/config.yml — edit it with 'gofer config'\n")
-	b.WriteString("--cd-file writes the folder you quit in, so a shell wrapper can follow you out\n\n")
+	b.WriteString("$GOFER_CD_FILE records the folder you quit in, so a shell wrapper can follow you out\n\n")
 	// One blank between sections, none under a heading: the whole page has to fit a short
 	// terminal without scrolling, and a heading over its own indented rows reads as a group
 	// with or without the gap.

@@ -8,22 +8,37 @@ gofer            # the current directory
 gofer /path      # an explicit start
 ```
 
-## Follow it out — `--cd-file`
+## Follow it out — `$GOFER_CD_FILE`
 
 A program cannot change its parent shell's directory, so gofer writes the directory you
 quit in and lets a shell function do the `cd`. Add this to your rc file:
 
 ```sh
 gofer() {
+  local tmp dir ret
   tmp="$(mktemp -t gofer-cd)"
-  command gofer --cd-file="$tmp" "$@"
+  GOFER_CD_FILE="$tmp" command gofer "$@"
+  ret=$?
   dir="$(cat -- "$tmp" 2>/dev/null)"; rm -f -- "$tmp"
   [ -n "$dir" ] && [ "$dir" != "$PWD" ] && cd -- "$dir"
+  return "$ret"
 }
 ```
 
-`command gofer` is what keeps the function from calling itself. The file is written only on
-a clean exit, so a crash leaves your shell where it was.
+`command gofer` keeps the function from calling itself, and is also how you bypass the
+wrapper for one run — `command gofer .` browses without moving your shell.
+
+The environment variable, rather than a flag, is what lets the wrapper be unconditional:
+`gofer config` and the other subcommands pass straight through it, and since only a browse
+writes the file, they leave your shell where it was. So does a crash.
+
+`return "$ret"` is not optional: the `cd` line is a test that fails whenever there is
+nowhere to go, so without it the function would report failure after every browse that
+stayed put — and would swallow a real error from `gofer update`. The variable is `ret` and
+not `status` because zsh reserves `status` as a read-only alias for `$?`.
+
+`--cd-file <path>` is the same thing typed directly, for a one-off outside the wrapper; a
+typed flag wins over the variable.
 
 ## Keys
 

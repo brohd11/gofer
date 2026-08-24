@@ -59,9 +59,9 @@ func refreshAction(sh *core.Shared) core.Action {
 	return core.Seq(core.SetStatus("re-read "+filepath.Base(Of(sh).Dir)), core.RefreshRoots())
 }
 
-// writeCDFile records dir for a shell wrapper to cd into. An empty path means the flag was
-// not given and there is nothing to do — the overwhelmingly common case, since the flag
-// only makes sense from inside the wrapper function.
+// writeCDFile records dir for a shell wrapper to cd into. An empty path means neither
+// $GOFER_CD_FILE nor --cd-file named one, and there is nothing to do — the case for every
+// run that is not inside the wrapper function.
 //
 // 0o600 rather than 0o644: the file names a directory the user was just browsing, it lives
 // wherever mktemp put it, and nothing else has any business reading it.

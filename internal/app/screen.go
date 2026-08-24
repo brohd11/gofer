@@ -31,7 +31,7 @@ var (
 //     than the one gofer was launched in (ModularOpts.Dir is a fixed string);
 //   - Crumber, so the bar above the panel carries the full path the panel's border legend
 //     only shows the base name of;
-//   - the ctx's Dir, which is what --cd-file writes after the program exits.
+//   - the ctx's Dir, which is what the cd file records after the program exits.
 //
 // ModularScreen rather than hosting the panel bare: it already translates mouse presses to
 // pane-local coordinates (which is what the panel's click math expects), composes the help

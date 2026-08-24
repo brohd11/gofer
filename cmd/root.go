@@ -3,11 +3,20 @@ package cmd
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/brohd11/gofer/internal/app"
 
 	"github.com/spf13/cobra"
 )
+
+// cdFileEnv is the shell wrapper's channel. A wrapper function cannot put --cd-file in
+// argv: it has no way to know whether what follows is a directory or a subcommand, and
+// `gofer --cd-file=… config` fails with "unknown flag" because the flag belongs to the root
+// command alone (deliberately — it means nothing to `config` or `update`). The environment
+// carries the same request without touching argv, so it is invisible to every subcommand
+// and stays correct as more are added.
+const cdFileEnv = "GOFER_CD_FILE"
 
 // version is the binary version; defaults to "dev" for a plain `go build`. The makefile
 // stamps it via -X ldflags, matching the sibling tools.
@@ -31,14 +40,21 @@ all the way to the filesystem root.
 The view preferences (row density, dot files) live in ~/.gofer/config.yml — edit them
 with "gofer config". Press ? inside gofer for the keys.
 
---cd-file writes the directory you quit in, so a shell wrapper can follow you out:
+gofer writes the directory you quit in to $GOFER_CD_FILE (or --cd-file), so a shell
+wrapper can follow you out:
 
   gofer() {
+    local tmp dir ret
     tmp="$(mktemp -t gofer-cd)"
-    command gofer --cd-file="$tmp" "$@"
+    GOFER_CD_FILE="$tmp" command gofer "$@"
+    ret=$?
     dir="$(cat -- "$tmp" 2>/dev/null)"; rm -f -- "$tmp"
     [ -n "$dir" ] && [ "$dir" != "$PWD" ] && cd -- "$dir"
-  }`,
+    return "$ret"
+  }
+
+Only a browse writes the file, so "gofer config" and the rest pass through the wrapper
+without moving your shell.`,
 	Version:       version,
 	Args:          cobra.MaximumNArgs(1),
 	SilenceUsage:  true,
@@ -50,6 +66,11 @@ func init() {
 	rootCmd.SetVersionTemplate("gofer {{.Version}}\n")
 	rootCmd.Flags().StringVar(&cdFile, "cd-file", "",
 		"write the directory gofer quit in to this file (for a shell wrapper to cd into)")
+	// The real default is the ladder resolveCDFile walks, not the empty string the flag
+	// holds — which pflag suppresses anyway as a zero value. DefValue is only ever the
+	// string cobra renders in "(default %s)", so rewriting it states that ladder where a
+	// reader looks.
+	rootCmd.Flags().Lookup("cd-file").DefValue = "$" + cdFileEnv
 	rootCmd.Flags().BoolVarP(&all, "all", "a", false,
 		"show hidden files for this run, whatever the config says (\".\" toggles it live)")
 }
@@ -77,8 +98,27 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	}
 	return app.Run(version, app.Options{
 		Dir:       abs,
-		CDFile:    cdFile,
+		CDFile:    resolveCDFile(cdFile, cmd.Flags().Changed("cd-file")),
 		Hidden:    all,
 		HiddenSet: cmd.Flags().Changed("all"),
 	})
+}
+
+// resolveCDFile picks where the finishing directory is recorded: the flag when it was
+// actually typed, otherwise $GOFER_CD_FILE, otherwise nowhere. Anything typed outranks the
+// environment, which is the ladder the sibling tools use for their own variables.
+//
+// A blank value is not a path, so a stray `export GOFER_CD_FILE=` cannot make gofer write a
+// file named "". It is not the way to opt out of a WRAPPER, though — the wrapper sets the
+// variable on the command line and so overrides whatever the outer environment said; the way
+// past a shell function is `command gofer`.
+//
+// Unlike gote's depth there is nothing here to malform, so there is no error to report: any
+// non-blank string is a path, and a path that cannot be written surfaces on exit as the
+// write's own error.
+func resolveCDFile(flagValue string, flagChanged bool) string {
+	if flagChanged {
+		return flagValue
+	}
+	return strings.TrimSpace(os.Getenv(cdFileEnv))
 }

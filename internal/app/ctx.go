@@ -14,7 +14,7 @@ import (
 // show_hidden: true could never be turned off for one run.
 type Options struct {
 	Dir       string // resolved absolute start directory
-	CDFile    string // --cd-file: where to record the directory gofer quit in
+	CDFile    string // where to record the directory gofer quit in ($GOFER_CD_FILE, or --cd-file)
 	Hidden    bool   // --all
 	HiddenSet bool
 }
@@ -25,7 +25,7 @@ type Options struct {
 //
 // Dir is the whole point of keeping a context at all. The panel owns navigation, but
 // Run has to read the final directory AFTER bubblestack.Run returns — that is what
-// --cd-file writes — and this is the only object that outlives the program's UI.
+// the cd file records — and this is the only object that outlives the program's UI.
 type Ctx struct {
 	Dir        string
 	Version    string

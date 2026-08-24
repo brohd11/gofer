@@ -49,7 +49,7 @@ func TestHelpPageIsTheCompleteReference(t *testing.T) {
 		"alt+r", "row density",
 		"t", "terminal", "ctrl+t", "file manager",
 		"a", "actions", "q", "quit", "?",
-		"~/.gofer/config.yml", "--cd-file", // what a keys page cannot say but a reader wants
+		"~/.gofer/config.yml", "GOFER_CD_FILE", // what a keys page cannot say but a reader wants
 	} {
 		if !strings.Contains(help, want) {
 			t.Fatalf("the ? page is the only place gofer's keys are written; missing %q:\n%s", want, help)
