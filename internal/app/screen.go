@@ -96,6 +96,13 @@ func (s *browseScreen) Init(sh *core.Shared) tea.Cmd {
 // the ".." row, which is exactly the row an unclamped explorer opens with. A view setting
 // must not depend on where the cursor happens to be.
 func (s *browseScreen) Update(sh *core.Shared, msg tea.Msg) (core.Screen, core.Action) {
+	// The editor had the terminal and has given it back. Re-read the folder: the file it
+	// just wrote is a different size, and on a standard-density row that number is on
+	// screen. Refresh keeps the cursor, so the user lands back on the row they edited.
+	if m, ok := msg.(editorClosedMsg); ok {
+		s.panel.Refresh()
+		return s, core.SetStatus(m.name + " closed")
+	}
 	if km, ok := msg.(tea.KeyMsg); ok && km.String() == "alt+?" {
 		// The one key that outranks the capture gate: a modified chord produces no text, so
 		// taking it from a live filter costs the query nothing, and a help page you cannot

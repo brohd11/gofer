@@ -59,6 +59,11 @@ typed flag wins over the variable.
 The terminal and file-manager keys follow you: they act on the folder you are looking at,
 not the one you launched in. The bar carries only `? more`; everything above is on that page.
 
+The menu `enter` opens on a file offers `Open in default app`, and — on a file gofer can
+read as text — `Open in text editor` above it. The editor is `$EDITOR`, then `$VISUAL`, then
+`vi`; it borrows this terminal rather than opening a window, so closing it puts you back on
+the same folder and the same row.
+
 ## Config
 
 `~/.gofer/config.yml` holds start-up settings. `gofer config` edits it with `$EDITOR`.

@@ -3,6 +3,7 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/brohd11/bubblestack/components"
@@ -156,14 +157,63 @@ func TestFilePickRaisesMenu(t *testing.T) {
 	}
 }
 
-// TestFileMenuItems: one row for now, and it owns its own dismissal.
+// TestFileMenuItems: the editor row leads on a text file and is absent on a binary, and
+// every row is pickable. The order is the assertion that matters — editing is the likelier
+// verb on a file gofer can read, so it must be the row the cursor opens on.
 func TestFileMenuItems(t *testing.T) {
-	items := fileMenuItems(components.FileEntry{Name: "notes.txt", Path: "/tmp/notes.txt"})
-	if len(items) != 1 || items[0].Label != "Open in default app" {
-		t.Fatalf("file menu = %+v, want one open row", items)
+	dir := t.TempDir()
+	text := filepath.Join(dir, "notes.txt")
+	if err := os.WriteFile(text, []byte("hello\n"), 0o644); err != nil {
+		t.Fatal(err)
 	}
-	if items[0].Pick == nil {
-		t.Fatal("the open row must be pickable")
+	binary := filepath.Join(dir, "image.png")
+	if err := os.WriteFile(binary, []byte("\x89PNG\r\n\x1a\n\x00\x00"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		name string
+		path string
+		want []string
+	}{
+		{"notes.txt", text, []string{"Open in text editor", "Open in default app"}},
+		{"image.png", binary, []string{"Open in default app"}},
+		// A path that cannot be read is not text, so it gets the shorter menu rather than a
+		// row that would launch an editor on nothing.
+		{"gone.txt", filepath.Join(dir, "gone.txt"), []string{"Open in default app"}},
+	}
+	for _, tc := range cases {
+		items := fileMenuItems(components.FileEntry{Name: tc.name, Path: tc.path, Dir: dir})
+		var labels []string
+		for _, it := range items {
+			labels = append(labels, it.Label)
+			if it.Pick == nil {
+				t.Fatalf("%s: row %q must be pickable", tc.name, it.Label)
+			}
+		}
+		if !reflect.DeepEqual(labels, tc.want) {
+			t.Errorf("%s menu = %v, want %v", tc.name, labels, tc.want)
+		}
+	}
+}
+
+// TestEditorCloseRefreshes: the message the ExecProcess callback returns re-reads the folder
+// and names the file on the status line. Without the re-read the size column would still
+// show what the file was before the editor wrote it.
+func TestEditorCloseRefreshes(t *testing.T) {
+	root := tree(t)
+	s, sh := newBrowse(t, root, false)
+
+	if err := os.WriteFile(filepath.Join(root, "fresh.txt"), []byte("new\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, act := s.Update(sh, editorClosedMsg{name: "notes.txt"})
+
+	if !hasRow(rowTitles(s.panel.List()), "fresh.txt") {
+		t.Error("closing the editor should re-read the folder")
+	}
+	if act.Msg == nil {
+		t.Error("closing the editor should say so on the status line")
 	}
 }
 
