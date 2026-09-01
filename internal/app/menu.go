@@ -8,7 +8,7 @@ import (
 	"github.com/brohd11/bubblestack/sysopen"
 	"github.com/brohd11/goutil/textfile"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // pickFile is the panel's OnSelect: a file raises a context menu over its own row.

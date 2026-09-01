@@ -9,8 +9,8 @@ import (
 	"github.com/brohd11/bubblestack/components"
 	"github.com/brohd11/bubblestack/core"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
 )
 
 // tree builds root/{sub/{deep.txt}, notes.txt, .hidden} and returns root.
@@ -30,11 +30,6 @@ func tree(t *testing.T) string {
 		}
 	}
 	return root
-}
-
-// keyMsg is a bare rune keypress, the form the screen's own letter keys arrive in.
-func keyMsg(k string) tea.KeyMsg {
-	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
 }
 
 // newBrowse builds the screen directly — enough for anything that does not push. The
@@ -155,7 +150,7 @@ func TestFilePickRaisesMenu(t *testing.T) {
 	model, s, _ := newBrowseRouter(t, root)
 
 	selectRow(t, s.panel.List(), "notes.txt")
-	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model, _ = model.Update(keyMsg("enter"))
 
 	if _, ok := model.(core.Router).Top().(*components.MenuScreen); !ok {
 		t.Fatalf("picking a file should push a MenuScreen, got %T", model.(core.Router).Top())
@@ -231,11 +226,11 @@ func TestHiddenToggle(t *testing.T) {
 	if hasRow(rowTitles(s.panel.List()), ".hidden") {
 		t.Fatal("dot files should be off by default")
 	}
-	s.Update(sh, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(".")})
+	s.Update(sh, keyMsg("."))
 	if !hasRow(rowTitles(s.panel.List()), ".hidden") {
 		t.Fatalf("\".\" should show dot files, got %v", rowTitles(s.panel.List()))
 	}
-	s.Update(sh, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(".")})
+	s.Update(sh, keyMsg("."))
 	if hasRow(rowTitles(s.panel.List()), ".hidden") {
 		t.Fatal("\".\" should hide them again")
 	}
@@ -271,7 +266,7 @@ func TestDensityKey(t *testing.T) {
 	if !s.panel.Compact() {
 		t.Fatal("gofer should start on the compact rows (DefaultConfig)")
 	}
-	s.Update(sh, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r"), Alt: true})
+	s.Update(sh, keyMsg("alt+r"))
 	if s.panel.Compact() {
 		t.Fatal("alt+r should flip the density")
 	}
@@ -287,7 +282,7 @@ func TestDirPickRaisesMenu(t *testing.T) {
 	model, s, sh := newBrowseRouter(t, root)
 
 	selectRow(t, s.panel.List(), "sub/")
-	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model, _ = model.Update(keyMsg("enter"))
 
 	if _, ok := model.(core.Router).Top().(*components.MenuScreen); !ok {
 		t.Fatalf("picking a folder should push a MenuScreen, got %T", model.(core.Router).Top())
@@ -306,7 +301,7 @@ func TestUpRowStillWalks(t *testing.T) {
 	selectRow(t, s.panel.List(), "sub/")
 	s.Update(sh, keyMsg("d"))
 	selectRow(t, s.panel.List(), "..")
-	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model, _ = model.Update(keyMsg("enter"))
 
 	if _, ok := model.(core.Router).Top().(*components.MenuScreen); ok {
 		t.Fatal("the \"..\" row should walk, not raise a menu")
@@ -431,9 +426,7 @@ func clickFolder(t *testing.T, model tea.Model, s *browseScreen, button tea.Mous
 	if !ok {
 		t.Fatal("the sub/ row should be on-page")
 	}
-	model, _ = model.Update(tea.MouseMsg{
-		Action: tea.MouseActionPress, Button: button, X: 5, Y: s.sh.BodyY() + row,
-	})
+	model, _ = model.Update(tea.MouseClickMsg{X: 5, Y: s.sh.BodyY() + row, Button: button})
 	return model
 }
 
@@ -443,7 +436,7 @@ func TestLeftClickEntersFolder(t *testing.T) {
 	root := tree(t)
 	model, s, sh := newBrowseRouter(t, root)
 
-	model = clickFolder(t, model, s, tea.MouseButtonLeft)
+	model = clickFolder(t, model, s, tea.MouseLeft)
 
 	if _, ok := model.(core.Router).Top().(*components.MenuScreen); ok {
 		t.Fatal("a left click on a folder should walk, not raise the menu")
@@ -459,7 +452,7 @@ func TestRightClickRaisesFolderMenu(t *testing.T) {
 	root := tree(t)
 	model, s, sh := newBrowseRouter(t, root)
 
-	model = clickFolder(t, model, s, tea.MouseButtonRight)
+	model = clickFolder(t, model, s, tea.MouseRight)
 
 	if _, ok := model.(core.Router).Top().(*components.MenuScreen); !ok {
 		t.Fatalf("a right click on a folder should push a MenuScreen, got %T", model.(core.Router).Top())

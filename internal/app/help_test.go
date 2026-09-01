@@ -7,8 +7,7 @@ import (
 	"github.com/brohd11/bubblestack/components"
 	"github.com/brohd11/bubblestack/core"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/list"
 )
 
 // TestHelpKeyToggles: "?" opens the page and "?" closes it again — the toggle asked for,
@@ -16,7 +15,7 @@ import (
 func TestHelpKeyToggles(t *testing.T) {
 	root := tree(t)
 	model, _, _ := newBrowseRouter(t, root)
-	question := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("?")}
+	question := keyMsg("?")
 
 	model, _ = model.Update(question)
 	if _, ok := model.(core.Router).Top().(*components.DocScreen); !ok {
@@ -29,7 +28,7 @@ func TestHelpKeyToggles(t *testing.T) {
 
 	// esc closes it too, the way it closes anything else.
 	model, _ = model.Update(question)
-	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	model, _ = model.Update(keyMsg("esc"))
 	if _, ok := model.(core.Router).Top().(*browseScreen); !ok {
 		t.Fatalf("esc should close the help page, got %T", model.(core.Router).Top())
 	}
@@ -81,7 +80,7 @@ func TestHelpReachableWhileFiltering(t *testing.T) {
 	if !s.Filtering() {
 		t.Fatal("setup: the panel should be capturing")
 	}
-	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("?"), Alt: true})
+	model, _ = model.Update(keyMsg("alt+?"))
 	if _, ok := model.(core.Router).Top().(*components.DocScreen); !ok {
 		t.Fatalf("alt+? should open the page while filtering, got %T", model.(core.Router).Top())
 	}
@@ -94,7 +93,7 @@ func TestBareHelpKeyIsTextWhileFiltering(t *testing.T) {
 	model, s, _ := newBrowseRouter(t, root)
 
 	s.panel.List().SetFilterState(list.Filtering)
-	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("?")})
+	model, _ = model.Update(keyMsg("?"))
 	if _, ok := model.(core.Router).Top().(*browseScreen); !ok {
 		t.Fatalf("a bare ? must not be stolen from a filter query, got %T", model.(core.Router).Top())
 	}

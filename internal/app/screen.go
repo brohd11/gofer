@@ -6,8 +6,8 @@ import (
 	"github.com/brohd11/bubblestack/components"
 	"github.com/brohd11/bubblestack/core"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
 )
 
 // The screen's own keys. The two bare ones are intercepted only when nothing is capturing
@@ -128,13 +128,13 @@ func (s *browseScreen) Update(sh *core.Shared, msg tea.Msg) (core.Screen, core.A
 		s.panel.Refresh()
 		return s, core.SetStatus(m.name + " closed")
 	}
-	if km, ok := msg.(tea.KeyMsg); ok && km.String() == "alt+?" {
+	if km, ok := msg.(tea.KeyPressMsg); ok && km.String() == "alt+?" {
 		// The one key that outranks the capture gate: a modified chord produces no text, so
 		// taking it from a live filter costs the query nothing, and a help page you cannot
 		// reach while filtering is a help page you cannot reach when you most need it.
 		return s, core.Push(s.helpScreen())
 	}
-	if km, ok := msg.(tea.KeyMsg); ok && !s.modular.Filtering() {
+	if km, ok := msg.(tea.KeyPressMsg); ok && !s.modular.Filtering() {
 		switch k := km.String(); {
 		case core.MatchKey(k, actionsKey):
 			return s, core.Push(actionsMenu(sh))
