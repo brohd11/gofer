@@ -44,9 +44,9 @@ typed flag wins over the variable.
 
 | key | |
 |---|---|
-| `d` | into the folder under the cursor |
+| `d` / left click | into the folder under the cursor |
 | `x` | up a folder (the `..` row does the same) |
-| `enter` / click | the menu on this row, folder or file |
+| `enter` / right click | the menu on this row, folder or file |
 | `/` | filter the current folder |
 | `.` | show or hide dot files (`-a` shows them for one run) |
 | `alt+r` | switch row density — one line per entry, or name plus size |
@@ -64,6 +64,10 @@ The menu `enter` opens on a file offers `Open in default app`, and — on a file
 read as text — `Open in text editor` above it. The editor is `$EDITOR`, then `$VISUAL`, then
 `vi`; it borrows this terminal rather than opening a window, so closing it puts you back on
 the same folder and the same row.
+
+The mouse follows the same split as the keys: left click opens a row — a folder by walking
+into it, a file by its menu — and right click is the menu on any row. Right-clicking again
+closes it. `ctrl+g` turns the mouse off when you want the terminal's own text selection back.
 
 On a folder the menu offers `Open folder`, `Open in file manager` and `Terminal here`. Those
 last two are the reason a folder has a menu at all: `t` and `ctrl+t` act on the folder you

@@ -420,3 +420,51 @@ func TestFolderKeysSurviveTheRouter(t *testing.T) {
 		t.Fatalf("x should reach the panel through the router; Dir = %q, want %q", Of(sh).Dir, root)
 	}
 }
+
+// clickFolder presses button over the "sub/" row at an ABSOLUTE terminal cell, the way a
+// real one arrives: the router and ModularScreen do the translation to pane-local
+// coordinates between here and the panel, and driving the panel directly would skip both.
+func clickFolder(t *testing.T, model tea.Model, s *browseScreen, button tea.MouseButton) tea.Model {
+	t.Helper()
+	selectRow(t, s.panel.List(), "sub/")
+	row, ok := s.panel.RowY(s.panel.List().Index())
+	if !ok {
+		t.Fatal("the sub/ row should be on-page")
+	}
+	model, _ = model.Update(tea.MouseMsg{
+		Action: tea.MouseActionPress, Button: button, X: 5, Y: s.sh.BodyY() + row,
+	})
+	return model
+}
+
+// TestLeftClickEntersFolder: the mouse mirrors the keys — a left click is d, so it walks
+// rather than raising the menu the way it used to.
+func TestLeftClickEntersFolder(t *testing.T) {
+	root := tree(t)
+	model, s, sh := newBrowseRouter(t, root)
+
+	model = clickFolder(t, model, s, tea.MouseButtonLeft)
+
+	if _, ok := model.(core.Router).Top().(*components.MenuScreen); ok {
+		t.Fatal("a left click on a folder should walk, not raise the menu")
+	}
+	if want := filepath.Join(root, "sub"); Of(sh).Dir != want {
+		t.Fatalf("Dir = %q, want %q", Of(sh).Dir, want)
+	}
+}
+
+// TestRightClickRaisesFolderMenu: the other button is enter, so it raises the same menu in
+// the same place — anchored on the row it landed on, since the click selects first.
+func TestRightClickRaisesFolderMenu(t *testing.T) {
+	root := tree(t)
+	model, s, sh := newBrowseRouter(t, root)
+
+	model = clickFolder(t, model, s, tea.MouseButtonRight)
+
+	if _, ok := model.(core.Router).Top().(*components.MenuScreen); !ok {
+		t.Fatalf("a right click on a folder should push a MenuScreen, got %T", model.(core.Router).Top())
+	}
+	if Of(sh).Dir != root {
+		t.Fatalf("a right click must not walk; Dir = %q", Of(sh).Dir)
+	}
+}
