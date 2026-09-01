@@ -44,8 +44,9 @@ typed flag wins over the variable.
 
 | key | |
 |---|---|
-| `enter` / click | walk into a folder, or open the menu on a file |
-| `backspace` | up a folder (the `..` row does the same) |
+| `d` | into the folder under the cursor |
+| `x` | up a folder (the `..` row does the same) |
+| `enter` / click | the menu on this row, folder or file |
 | `/` | filter the current folder |
 | `.` | show or hide dot files (`-a` shows them for one run) |
 | `alt+r` | switch row density — one line per entry, or name plus size |
@@ -63,6 +64,11 @@ The menu `enter` opens on a file offers `Open in default app`, and — on a file
 read as text — `Open in text editor` above it. The editor is `$EDITOR`, then `$VISUAL`, then
 `vi`; it borrows this terminal rather than opening a window, so closing it puts you back on
 the same folder and the same row.
+
+On a folder the menu offers `Open folder`, `Open in file manager` and `Terminal here`. Those
+last two are the reason a folder has a menu at all: `t` and `ctrl+t` act on the folder you
+are already in, so without them there was no way to aim either at the folder under the
+cursor. `..` is the exception — `enter` on it just walks up.
 
 ## Config
 

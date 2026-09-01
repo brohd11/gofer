@@ -4,8 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 // TestWriteCDFile: the file is what a shell wrapper cds into, so it holds exactly one
@@ -63,7 +61,7 @@ func TestCDFileFollowsTheBrowse(t *testing.T) {
 	root := tree(t)
 	s, sh := newBrowse(t, root, false)
 	selectRow(t, s.panel.List(), "sub/")
-	s.Update(sh, tea.KeyMsg{Type: tea.KeyEnter})
+	s.Update(sh, keyMsg("d"))
 
 	path := filepath.Join(t.TempDir(), "cd")
 	if err := writeCDFile(path, Of(sh).Dir); err != nil {

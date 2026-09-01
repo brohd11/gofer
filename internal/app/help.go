@@ -37,7 +37,8 @@ func (s *browseScreen) helpScreen() *components.DocScreen {
 // them reaches this page instead of leaving it quietly stale — including the panel's own
 // up key, which the component owns and could change under us.
 //
-// The key column is 12 wide because "backspace" plus a slash pair is the widest entry; every
+// The key column is 12 wide, which is roomier than the widest entry needs ("ctrl+t") — the
+// slack is there so a longer binding can be added without every row below it shifting. Every
 // label spells its modifier out ("alt+r", not "⌥r") so the page reads in one notation.
 func (s *browseScreen) helpText() string {
 	var b strings.Builder
@@ -56,13 +57,14 @@ func (s *browseScreen) helpText() string {
 		}
 		b.WriteString("\n")
 	}
-	// Back and "up a folder" are separate rows even though esc and backspace are both
-	// core.Keys.Back: the panel claims backspace for the parent directory whenever there is
-	// one, which in an unclamped explorer is always. A single "back" row would be wrong
-	// about the key you press most.
+	// Moving through the tree and acting on a row are two different keys, and the rows say
+	// so in that order: d and x are what you hold the folder open with, enter is what you
+	// do to the thing under the cursor. The up key is read off the panel rather than
+	// written here, since the component owns it and could change it under us.
 	writeSection("navigation", []key.Binding{
-		core.Hint("open a folder, or the menu on a file", core.Keys.Select),
+		descendKey,
 		core.Hint("up a folder (the \"..\" row does the same)", s.panel.UpKey()),
+		core.Hint("the menu on this row, folder or file", core.Keys.Select),
 		core.Hint("close a menu or this page", core.Keys.Back),
 		core.Hint("filter this folder", s.panel.List().KeyMap.Filter),
 		core.Hint("top/bottom", core.Keys.Top, core.Keys.Bottom),

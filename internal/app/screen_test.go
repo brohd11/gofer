@@ -32,6 +32,11 @@ func tree(t *testing.T) string {
 	return root
 }
 
+// keyMsg is a bare rune keypress, the form the screen's own letter keys arrive in.
+func keyMsg(k string) tea.KeyMsg {
+	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
+}
+
 // newBrowse builds the screen directly — enough for anything that does not push. The
 // defaults are gofer's own, so a test says only what it is actually about.
 func newBrowse(t *testing.T, root string, showHidden bool) (*browseScreen, *core.Shared) {
@@ -110,7 +115,7 @@ func TestBrowseWalks(t *testing.T) {
 	}
 
 	selectRow(t, s.panel.List(), "sub/")
-	s.Update(sh, tea.KeyMsg{Type: tea.KeyEnter})
+	s.Update(sh, keyMsg("d"))
 
 	sub := filepath.Join(root, "sub")
 	if Of(sh).Dir != sub {
@@ -127,9 +132,9 @@ func TestBrowseWalks(t *testing.T) {
 	}
 
 	// And back out — gofer is unclamped, so there is always a way up.
-	s.Update(sh, tea.KeyMsg{Type: tea.KeyBackspace})
+	s.Update(sh, keyMsg("x"))
 	if Of(sh).Dir != root {
-		t.Fatalf("backspace should walk to the parent; Dir = %q", Of(sh).Dir)
+		t.Fatalf("x should walk to the parent; Dir = %q", Of(sh).Dir)
 	}
 }
 
@@ -137,7 +142,7 @@ func TestBrowseWalks(t *testing.T) {
 func TestUnclamped(t *testing.T) {
 	root := tree(t)
 	s, sh := newBrowse(t, root, false)
-	s.Update(sh, tea.KeyMsg{Type: tea.KeyBackspace})
+	s.Update(sh, keyMsg("x"))
 	if want := filepath.Dir(root); Of(sh).Dir != want {
 		t.Fatalf("Dir = %q, want %q — gofer has no floor", Of(sh).Dir, want)
 	}
@@ -272,5 +277,146 @@ func TestDensityKey(t *testing.T) {
 	}
 	if Of(sh).Dir != root {
 		t.Fatal("the flip must not move the listing")
+	}
+}
+
+// TestDirPickRaisesMenu: enter on a FOLDER opens its menu rather than walking in. That is
+// the whole point of moving the walk onto d — a folder used to be the one row with no verbs.
+func TestDirPickRaisesMenu(t *testing.T) {
+	root := tree(t)
+	model, s, sh := newBrowseRouter(t, root)
+
+	selectRow(t, s.panel.List(), "sub/")
+	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if _, ok := model.(core.Router).Top().(*components.MenuScreen); !ok {
+		t.Fatalf("picking a folder should push a MenuScreen, got %T", model.(core.Router).Top())
+	}
+	if Of(sh).Dir != root {
+		t.Fatalf("enter must not walk; Dir = %q, want %q", Of(sh).Dir, root)
+	}
+}
+
+// TestUpRowStillWalks: ".." is the exception — enter on it walks up, because the way out of
+// a folder is a navigation affordance and not a folder you act on.
+func TestUpRowStillWalks(t *testing.T) {
+	root := tree(t)
+	model, s, sh := newBrowseRouter(t, root)
+
+	selectRow(t, s.panel.List(), "sub/")
+	s.Update(sh, keyMsg("d"))
+	selectRow(t, s.panel.List(), "..")
+	model, _ = model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	if _, ok := model.(core.Router).Top().(*components.MenuScreen); ok {
+		t.Fatal("the \"..\" row should walk, not raise a menu")
+	}
+	if Of(sh).Dir != root {
+		t.Fatalf("enter on \"..\" should walk to the parent; Dir = %q", Of(sh).Dir)
+	}
+}
+
+// TestDescendOnUpRow: d means "into whatever the cursor is on", and on ".." that is the
+// parent. It is a screen key rather than the panel's OnKey precisely so this row works —
+// OnKey reports unhandled on it, and it is the row an unclamped explorer lands on.
+func TestDescendOnUpRow(t *testing.T) {
+	root := tree(t)
+	s, sh := newBrowse(t, root, false)
+
+	selectRow(t, s.panel.List(), "sub/")
+	s.Update(sh, keyMsg("d"))
+	selectRow(t, s.panel.List(), "..")
+	s.Update(sh, keyMsg("d"))
+
+	if Of(sh).Dir != root {
+		t.Fatalf("d on \"..\" should walk to the parent; Dir = %q", Of(sh).Dir)
+	}
+}
+
+// TestDescendIgnoresFiles: there is nothing to descend into on a file, and d must not be a
+// second way to open its menu — that is enter's job.
+func TestDescendIgnoresFiles(t *testing.T) {
+	root := tree(t)
+	s, sh := newBrowse(t, root, false)
+
+	selectRow(t, s.panel.List(), "notes.txt")
+	s.Update(sh, keyMsg("d"))
+	if Of(sh).Dir != root {
+		t.Fatalf("d on a file should do nothing; Dir = %q", Of(sh).Dir)
+	}
+}
+
+// TestDirMenuItems: the folder menu's rows and their order. "Open folder" leads because it
+// is the second press of what used to be one — the two below it are the new reach, since
+// the global t/ctrl+t only ever act on the folder you are already in.
+func TestDirMenuItems(t *testing.T) {
+	root := tree(t)
+	s, _ := newBrowse(t, root, false)
+
+	var labels []string
+	for _, it := range s.dirMenuItems(components.FileEntry{Name: "sub", Path: filepath.Join(root, "sub"), Dir: root, IsDir: true}) {
+		labels = append(labels, it.Label)
+		if it.Pick == nil {
+			t.Fatalf("row %q must be pickable", it.Label)
+		}
+	}
+	want := []string{"Open folder", "Open in file manager", "Terminal here"}
+	if !reflect.DeepEqual(labels, want) {
+		t.Errorf("folder menu = %v, want %v", labels, want)
+	}
+}
+
+// TestDirMenuOpenFolderWalks: the first row is the one that keeps enter cheap — it lands in
+// the folder the menu was raised over.
+func TestDirMenuOpenFolderWalks(t *testing.T) {
+	root := tree(t)
+	s, sh := newBrowse(t, root, false)
+
+	items := s.dirMenuItems(components.FileEntry{Name: "sub", Path: filepath.Join(root, "sub"), Dir: root, IsDir: true})
+	items[0].Pick(sh)
+
+	if want := filepath.Join(root, "sub"); Of(sh).Dir != want {
+		t.Fatalf("Open folder should walk in; Dir = %q, want %q", Of(sh).Dir, want)
+	}
+}
+
+// TestFolderKeysAreOwnedByTheScreen: a live /-filter owns every character, so neither folder
+// key may be taken back out of the query.
+func TestFolderKeysAreOwnedByTheScreen(t *testing.T) {
+	root := tree(t)
+	s, sh := newBrowse(t, root, false)
+
+	s.Update(sh, keyMsg("/"))
+	if !s.Filtering() {
+		t.Fatal("/ should open the filter")
+	}
+	before := Of(sh).Dir
+	s.Update(sh, keyMsg("d"))
+	s.Update(sh, keyMsg("x"))
+	if Of(sh).Dir != before {
+		t.Fatalf("d and x must be typed into a live filter, not acted on; Dir = %q", Of(sh).Dir)
+	}
+}
+
+// TestFolderKeysSurviveTheRouter is the load-bearing test for the choice of x: it is
+// core.Keys.NextTab's second keycode, and it only reaches the panel because switchTab is a
+// no-op below two tabs and reports the key unhandled. Every other folder-key test drives
+// the screen directly and would pass even if the router ate it, so this one goes through
+// the real router — and will fail the day gofer grows a second tab, which is exactly when
+// somebody needs to be told.
+func TestFolderKeysSurviveTheRouter(t *testing.T) {
+	root := tree(t)
+	model, s, sh := newBrowseRouter(t, root)
+
+	selectRow(t, s.panel.List(), "sub/")
+	model, _ = model.Update(keyMsg("d"))
+	sub := filepath.Join(root, "sub")
+	if Of(sh).Dir != sub {
+		t.Fatalf("d should reach the screen through the router; Dir = %q, want %q", Of(sh).Dir, sub)
+	}
+
+	model.Update(keyMsg("x"))
+	if Of(sh).Dir != root {
+		t.Fatalf("x should reach the panel through the router; Dir = %q, want %q", Of(sh).Dir, root)
 	}
 }

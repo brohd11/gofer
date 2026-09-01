@@ -50,6 +50,58 @@ func fileMenuItems(e components.FileEntry) []components.MenuItem {
 	})
 }
 
+// pickDir is the panel's OnOpenDir: enter (or a click) on a FOLDER raises its menu instead
+// of walking into it. Walking is d's job, and a folder that could only be walked into was a
+// row with no verbs at all — "open this one in the file manager" and "put a shell in this
+// one" had no key, because the global t/T/ctrl+t are DirLocator keys and only ever act on
+// the folder you are already IN (browseScreen.LocateDir), never the one under the cursor.
+//
+// The ".." row is the exception and reports unhandled, so the panel walks up as it always
+// did. The way out of a folder is a navigation affordance, not a folder you act on — the
+// same reason it is kept out of a /-filter (fileItem.FilterValue).
+func (s *browseScreen) pickDir(sh *core.Shared, e components.FileEntry) (core.Action, bool) {
+	if e.Up {
+		return core.Action{}, false
+	}
+	return core.Push(components.NewMenu(components.MenuOpts{
+		Title:  e.Name,
+		Items:  s.dirMenuItems(e),
+		Anchor: s.rowAnchor(sh),
+	})), true
+}
+
+// dirMenuItems is the folder menu's rows, fileMenuItems' counterpart. Each owns its own
+// dismissal, as every MenuItem does.
+//
+// "Open folder" is first and is the row that keeps enter cheap: the key that used to walk
+// in now takes two presses to do it, and this is the second one.
+func (s *browseScreen) dirMenuItems(e components.FileEntry) []components.MenuItem {
+	return []components.MenuItem{{
+		Label: "Open folder",
+		// SetDir runs as this Seq's argument, so the panel has re-listed before the Pop is
+		// applied. Nothing renders between the two — the same single-tick ordering
+		// openInEditor relies on below — but the walk really does happen first.
+		Pick: func(sh *core.Shared) core.Action {
+			return core.Seq(core.Pop(), s.panel.SetDir(sh, e.Path))
+		},
+	}, {
+		Label: "Open in file manager",
+		// reveal is false: the target is a directory, so it opens as one rather than being
+		// highlighted inside its parent.
+		Pick: func(*core.Shared) core.Action {
+			return core.Seq(core.Pop(), sysopen.Path(e.Path, false))
+		},
+	}, {
+		Label: "Terminal here",
+		// The inline form, matching what bare t does: a shell for a two-command detour
+		// shouldn't cost a window. The Pop runs first so the terminal is restored onto the
+		// listing rather than onto a menu stranded over it.
+		Pick: func(*core.Shared) core.Action {
+			return core.Seq(core.Pop(), sysopen.TerminalInline(e.Path))
+		},
+	}}
+}
+
 // openInEditor hands this process's terminal to $EDITOR on e, and takes it back when the
 // editor exits — the user returns to the folder and the row they left, rather than to a
 // detached window they now have to close.

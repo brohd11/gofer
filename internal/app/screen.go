@@ -18,6 +18,21 @@ var (
 	actionsKey = key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "actions (theme, update, refresh)"))
 	hiddenKey  = key.NewBinding(key.WithKeys("."), key.WithHelp(".", "show or hide dot files"))
 	densityKey = key.NewBinding(key.WithKeys("alt+r"), key.WithHelp("alt+r", "row density"))
+	// The two folder keys, both under the left hand beside the alt+w/a/s/d nav scheme
+	// core.Keys already carries. They are bare letters because a browse is a two-handed
+	// gesture at most, and a modifier on the key you press most would be a tax.
+	//
+	// Not the arrows: core.StyleList binds core.Keys.Left/Right to every list's
+	// PrevPage/NextPage, and those are the framework's ONLY pagination keys — claiming
+	// them here would cost this panel its page-flipping to buy a second way to do what d
+	// and x already do.
+	//
+	// x is core.Keys.NextTab's second keycode, which is free here and only here: the
+	// router's switchTab is a no-op below two tabs and reports the key unhandled
+	// (router_keys.go), so in single-tab gofer it falls through to the panel. A second tab
+	// would take it back — the one thing to remember before adding one.
+	descendKey = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "into the folder under the cursor"))
+	upKey      = key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "up a folder"))
 	// alt+? is the modified alias that summons the page from anywhere, the capture gate
 	// included; the bare "?" is the one the bar advertises.
 	helpKey = key.NewBinding(key.WithKeys("?", "alt+?"), key.WithHelp("?", "more"))
@@ -64,8 +79,16 @@ func NewBrowseScreen(sh *core.Shared) core.Screen {
 		Compact:    c.Compact,
 		DensityKey: densityKey,
 		Include:    c.include,
-		OnSelect:   s.pickFile,
-		OnDir:      func(sh *core.Shared, dir string) core.Action { Of(sh).Dir = dir; return core.Action{} },
+		// x rather than the component's default backspace, which was doing double duty:
+		// backspace is one of core.Keys.Back's keycodes, and the panel could only claim it
+		// by handing it back at the floor. gote still takes the default — it sets no UpKey.
+		UpKey:    upKey,
+		OnSelect: s.pickFile,
+		// A folder gets what a file gets: enter raises its menu rather than walking, which
+		// is what d is for. handled=false is what still lets the panel walk, and pickDir
+		// uses that for the ".." row.
+		OnOpenDir: s.pickDir,
+		OnDir:     func(sh *core.Shared, dir string) core.Action { Of(sh).Dir = dir; return core.Action{} },
 		OnError: func(_ *core.Shared, err error) core.Action {
 			return core.Push(components.CreatePopup("open folder", err.Error(), core.Pop()))
 		},
@@ -115,12 +138,29 @@ func (s *browseScreen) Update(sh *core.Shared, msg tea.Msg) (core.Screen, core.A
 			return s, core.Push(actionsMenu(sh))
 		case core.MatchKey(k, hiddenKey):
 			return s, s.toggleHidden(sh)
+		case core.MatchKey(k, descendKey):
+			return s, s.descend(sh)
 		case core.MatchKey(k, helpKey):
 			return s, core.Push(s.helpScreen())
 		}
 	}
 	_, act := s.modular.Update(sh, msg)
 	return s, act
+}
+
+// descend walks into the folder under the cursor. On a file it does nothing — there is
+// nothing to descend into — and on the ".." row it walks up, since that row IS the parent
+// directory and "into whatever the cursor is on" is the whole rule.
+//
+// A SCREEN key rather than the panel's OnKey hook, for the reason the hidden toggle is one:
+// OnKey reports unhandled on the ".." row (FilePanelOpts.OnKey), which in an unclamped
+// explorer is the row you land on every time you walk up.
+func (s *browseScreen) descend(sh *core.Shared) core.Action {
+	e, ok := s.panel.Selected()
+	if !ok || !e.IsDir {
+		return core.Action{}
+	}
+	return s.panel.SetDir(sh, e.Path)
 }
 
 // toggleHidden shows or hides dot files and re-reads the folder in place — the panel keeps

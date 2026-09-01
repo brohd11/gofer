@@ -44,7 +44,7 @@ func TestHelpPageIsTheCompleteReference(t *testing.T) {
 
 	help := s.helpText()
 	for _, want := range []string{
-		"enter", "esc", "backspace", "/", // navigation
+		"d", "x", "enter", "esc", "/", // navigation
 		"dot files", ".", // the key that moved off the bar
 		"alt+r", "row density",
 		"t", "terminal", "ctrl+t", "file manager",
