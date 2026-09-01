@@ -74,6 +74,8 @@ func NewBrowseScreen(sh *core.Shared) core.Screen {
 		// No Root: gofer is a file explorer, so ".." goes all the way up. gote clamps
 		// because its explorer must not leave the scan the rest of the app knows about.
 		Border: true,
+		// A listing you scan down is the one place file-type color earns its keep.
+		Colors: true,
 		// The starting density is the config's (compact by default); alt+r flips it for
 		// this session without writing the choice back.
 		Compact:    c.Compact,
