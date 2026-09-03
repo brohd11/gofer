@@ -41,17 +41,10 @@ The view preferences (row density, dot files) live in ~/.gofer/config.yml — ed
 with "gofer config". Press ? inside gofer for the keys.
 
 gofer writes the directory you quit in to $GOFER_CD_FILE (or --cd-file), so a shell
-wrapper can follow you out:
+wrapper can follow you out. "gofer func" prints that wrapper, so an rc file carries one
+line and the wrapper stays current with the binary:
 
-  gofer() {
-    local tmp dir ret
-    tmp="$(mktemp -t gofer-cd)"
-    GOFER_CD_FILE="$tmp" command gofer "$@"
-    ret=$?
-    dir="$(cat -- "$tmp" 2>/dev/null)"; rm -f -- "$tmp"
-    [ -n "$dir" ] && [ "$dir" != "$PWD" ] && cd -- "$dir"
-    return "$ret"
-  }
+  eval "$(gofer func zsh)"    # bash, zsh and fish; "gofer func" alone reads $SHELL
 
 Only a browse writes the file, so "gofer config" and the rest pass through the wrapper
 without moving your shell.`,

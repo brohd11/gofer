@@ -26,15 +26,10 @@ Run '$BINARY' to browse a directory:
   $BINARY ~/projects
 
 To have your shell follow you out, add this to your rc file:
-  $BINARY() {
-    local tmp dir ret
-    tmp="\$(mktemp -t $BINARY-cd)"
-    GOFER_CD_FILE="\$tmp" command $BINARY "\$@"
-    ret=\$?
-    dir="\$(cat -- "\$tmp" 2>/dev/null)"; rm -f -- "\$tmp"
-    [ -n "\$dir" ] && [ "\$dir" != "\$PWD" ] && cd -- "\$dir"
-    return "\$ret"
-  }
+  eval "\$($BINARY func)"
+
+That prints a shell function that cds where you quit -- bash, zsh and fish. Run
+'$BINARY func' on its own to read it first, or name the shell: '$BINARY func zsh'.
 EOT
 }
 # ---- end config ----

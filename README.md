@@ -11,31 +11,24 @@ gofer /path      # an explicit start
 ## Follow it out — `$GOFER_CD_FILE`
 
 A program cannot change its parent shell's directory, so gofer writes the directory you
-quit in and lets a shell function do the `cd`. Add this to your rc file:
+quit in and lets a shell function do the `cd`. `gofer func` prints that function — add one
+line to your rc file and the wrapper travels with the binary instead of going stale in your
+dotfiles:
 
 ```sh
-gofer() {
-  local tmp dir ret
-  tmp="$(mktemp -t gofer-cd)"
-  GOFER_CD_FILE="$tmp" command gofer "$@"
-  ret=$?
-  dir="$(cat -- "$tmp" 2>/dev/null)"; rm -f -- "$tmp"
-  [ -n "$dir" ] && [ "$dir" != "$PWD" ] && cd -- "$dir"
-  return "$ret"
-}
+eval "$(gofer func zsh)"
 ```
 
-`command gofer` keeps the function from calling itself, and is also how you bypass the
-wrapper for one run — `command gofer .` browses without moving your shell.
+`bash`, `zsh` and `fish` are supported. `gofer func` with no argument reads `$SHELL`, which
+is your *login* shell and not necessarily the one reading the rc file — naming the shell is
+the sturdier form. Run it on its own to read the function before you eval it.
+
+The wrapper calls `command gofer`, which keeps the function from calling itself and is also
+how you bypass it for one run — `command gofer .` browses without moving your shell.
 
 The environment variable, rather than a flag, is what lets the wrapper be unconditional:
 `gofer config` and the other subcommands pass straight through it, and since only a browse
 writes the file, they leave your shell where it was. So does a crash.
-
-`return "$ret"` is not optional: the `cd` line is a test that fails whenever there is
-nowhere to go, so without it the function would report failure after every browse that
-stayed put — and would swallow a real error from `gofer update`. The variable is `ret` and
-not `status` because zsh reserves `status` as a read-only alias for `$?`.
 
 `--cd-file <path>` is the same thing typed directly, for a one-off outside the wrapper; a
 typed flag wins over the variable.
