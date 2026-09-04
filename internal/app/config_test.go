@@ -11,6 +11,7 @@ import (
 func writeConfig(t *testing.T, body string) Config {
 	t.Helper()
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", os.Getenv("HOME"))
 	dir, err := Dir()
 	if err != nil {
 		t.Fatal(err)
@@ -35,6 +36,7 @@ func writeConfig(t *testing.T, body string) Config {
 // TestMissingConfigIsTheDefaults: a fresh install needs no setup.
 func TestMissingConfigIsTheDefaults(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", os.Getenv("HOME"))
 	cfg, err := LoadConfig()
 	if err != nil {
 		t.Fatal(err)
@@ -74,6 +76,7 @@ func TestConfigOverridesTheDefaults(t *testing.T) {
 // than half-written by the failing unmarshal.
 func TestMalformedConfig(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", os.Getenv("HOME"))
 	dir, _ := Dir()
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
@@ -96,6 +99,7 @@ func TestMalformedConfig(t *testing.T) {
 // discover. It must also leave an existing file alone.
 func TestEnsureConfigWritesTheSchema(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", os.Getenv("HOME"))
 	path, err := EnsureConfig()
 	if err != nil {
 		t.Fatal(err)
@@ -126,6 +130,7 @@ func TestEnsureConfigWritesTheSchema(t *testing.T) {
 // writing it and reading it back has to land on DefaultConfig() again.
 func TestDefaultConfigRoundTrip(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("USERPROFILE", os.Getenv("HOME"))
 	if _, err := EnsureConfig(); err != nil {
 		t.Fatal(err)
 	}

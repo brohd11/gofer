@@ -3,6 +3,7 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -22,8 +23,10 @@ func TestWriteCDFile(t *testing.T) {
 	if string(raw) != "/some/where\n" {
 		t.Fatalf("cd file = %q, want the path and a newline", raw)
 	}
-	if info, err := os.Stat(path); err != nil || info.Mode().Perm() != 0o600 {
-		t.Fatalf("cd file mode = %v (%v), want 0600", info.Mode().Perm(), err)
+	if info, err := os.Stat(path); err != nil {
+		t.Fatal(err)
+	} else if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
+		t.Fatalf("cd file mode = %v, want 0600", info.Mode().Perm())
 	}
 }
 
