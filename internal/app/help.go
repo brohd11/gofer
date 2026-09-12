@@ -87,7 +87,7 @@ func (s *browseScreen) helpText() string {
 		core.Hint("open in the file manager", core.Keys.OpenDir),
 	})
 	writeSection("general", []key.Binding{
-		actionsKey,
+		core.FullHint("actions (theme, update, refresh)", core.Keys.Actions),
 		core.Hint("quit", core.Keys.Quit, key.NewBinding(key.WithKeys("ctrl+c"))),
 		core.Hint("this page (? again or esc closes it)", helpKey),
 	})

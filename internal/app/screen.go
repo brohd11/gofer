@@ -10,12 +10,13 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// The screen's own keys. The two bare ones are intercepted only when nothing is capturing
-// (see Update), so a /-filter never loses a character to them; densityKey is the panel's
-// own and carries a modifier, alt+r rather than alt+d/f — the sibling apps' editor moves by
-// words on those, and the chords should not mean two things across the monorepo.
+// The screen's own keys. The Actions picker is not among them — that binding is shared by
+// every app on the framework and lives in core.Keys. The bare ones here are intercepted
+// only when nothing is capturing (see Update), so a /-filter never loses a character to
+// them; densityKey is the panel's own and carries a modifier, alt+r rather than alt+d/f —
+// the sibling apps' editor moves by words on those, and the chords should not mean two
+// things across the monorepo.
 var (
-	actionsKey = key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "actions (theme, update, refresh)"))
 	hiddenKey  = key.NewBinding(key.WithKeys("."), key.WithHelp(".", "show or hide dot files"))
 	densityKey = key.NewBinding(key.WithKeys("alt+r"), key.WithHelp("alt+r", "row density"))
 	// The two folder keys, both under the left hand beside the alt+w/a/s/d nav scheme
@@ -136,7 +137,7 @@ func (s *browseScreen) Update(sh *core.Shared, msg tea.Msg) (core.Screen, core.A
 	}
 	if km, ok := msg.(tea.KeyPressMsg); ok && !s.modular.Filtering() {
 		switch k := km.String(); {
-		case core.MatchKey(k, actionsKey):
+		case core.MatchKey(k, core.Keys.Actions):
 			return s, core.Push(actionsMenu(sh))
 		case core.MatchKey(k, hiddenKey):
 			return s, s.toggleHidden(sh)
