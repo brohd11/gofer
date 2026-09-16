@@ -53,6 +53,10 @@ typed flag wins over the variable.
 The terminal and file-manager keys follow you: they act on the folder you are looking at,
 not the one you launched in. The bar carries only `? more`; everything above is on that page.
 
+In the `t` shell, a reminder above each zsh, bash or fish prompt says `exit returns to gofer`.
+If you open more apps and terminals inside it, the reminder shows the app chain, such as
+`[gofer → repoview] exit returns to repoview`. Other shells show the reminder once on entry.
+
 The menu `enter` opens on a file offers `Open in default app`, and — on a file gofer can
 read as text — `Open in text editor` above it. The editor is `$EDITOR`, then `$VISUAL`, then
 `vi`; it borrows this terminal rather than opening a window, so closing it puts you back on

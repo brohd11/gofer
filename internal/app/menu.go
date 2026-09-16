@@ -97,7 +97,7 @@ func (s *browseScreen) dirMenuItems(e components.FileEntry) []components.MenuIte
 		// shouldn't cost a window. The Pop runs first so the terminal is restored onto the
 		// listing rather than onto a menu stranded over it.
 		Pick: func(*core.Shared) core.Action {
-			return core.Seq(core.Pop(), sysopen.TerminalInline(e.Path))
+			return core.Seq(core.Pop(), sysopen.TerminalInlineFor("gofer", e.Path))
 		},
 	}}
 }

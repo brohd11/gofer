@@ -41,7 +41,7 @@ func Run(version string, opts Options) error {
 		},
 		Init:                 SelfUpdateCheckCmd,
 		RefreshAction:        refreshAction,
-		TerminalAction:       func(dir string) core.Action { return sysopen.TerminalInline(dir) },
+		TerminalAction:       func(dir string) core.Action { return sysopen.TerminalInlineFor("gofer", dir) },
 		TerminalWindowAction: func(dir string) core.Action { return sysopen.Terminal(dir) },
 		OpenDirAction:        func(dir string) core.Action { return sysopen.Path(dir, false) },
 	})
