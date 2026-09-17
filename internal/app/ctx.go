@@ -20,13 +20,17 @@ type Options struct {
 }
 
 // Ctx is gofer's app context, stored on core.Shared.App and recovered with Of. It is
-// almost nothing: the directory the panel is currently listing, the two view preferences,
-// and the version the self-update flow checks against.
+// almost nothing: the directory the panel is currently listing, its view preferences,
+// the independent menu density, and the version the self-update flow checks against.
 //
 // Dir is the whole point of keeping a context at all. The panel owns navigation, but
 // Run has to read the final directory AFTER bubblestack.Run returns — that is what
 // the cd file records — and this is the only object that outlives the program's UI.
 type Ctx struct {
+	// ListCompact is the session density for standard menus, independent of
+	// Compact, which configures the file panel.
+	ListCompact bool
+
 	Dir        string
 	Version    string
 	Compact    bool
@@ -93,3 +97,6 @@ func shortHome(path, home string) string {
 	}
 	return "~" + string(filepath.Separator) + rel
 }
+
+// ListDensity opts standard lists into the app-wide session preference.
+func (c *Ctx) ListDensity() *bool { return &c.ListCompact }

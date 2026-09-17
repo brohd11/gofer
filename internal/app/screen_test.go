@@ -275,6 +275,29 @@ func TestDensityKey(t *testing.T) {
 	}
 }
 
+func TestMenuDensityStaysIndependentOfFilePanel(t *testing.T) {
+	m, browser, sh := newBrowseRouter(t, tree(t))
+	p := actionsMenu(sh)
+	m, _ = m.Update(core.Push(p))
+	if p.Compact() || !browser.panel.Compact() {
+		t.Fatal("menus start expanded while the browser retains its compact default")
+	}
+	m, _ = m.Update(keyMsg("D"))
+	if !p.Compact() || !Of(sh).ListCompact || !browser.panel.Compact() {
+		t.Fatal("menu density must not alter the file panel")
+	}
+	m, _ = m.Update(keyMsg("esc"))
+	m, _ = m.Update(keyMsg("alt+r"))
+	if browser.panel.Compact() || !Of(sh).ListCompact {
+		t.Fatal("file-panel density must not alter the menu preference")
+	}
+	q := actionsMenu(sh)
+	m, _ = m.Update(core.Push(q))
+	if !q.Compact() {
+		t.Fatal("new menus must inherit the previous menu choice")
+	}
+}
+
 // TestDirPickRaisesMenu: enter on a FOLDER opens its menu rather than walking in. That is
 // the whole point of moving the walk onto d — a folder used to be the one row with no verbs.
 func TestDirPickRaisesMenu(t *testing.T) {
