@@ -1,68 +1,49 @@
 package app
 
 import (
-	"os"
 	"path/filepath"
 
 	"github.com/brohd11/goutil/configdir"
 )
 
-// Config is the parsed ~/.gofer/config.yml: gofer's two view preferences, and nothing else.
-// A missing file yields the defaults, so a fresh install needs no setup.
-//
-// Nothing is omitempty: the written file is the only place the schema is visible, so every
-// key appears even when its value is the zero one. A config that showed a key only once it
-// differed from the default would be a setting the user cannot discover.
+// Config is ~/.gofer/config.yml. No field is omitempty, so the written file shows every key.
 type Config struct {
-	Compact    bool `yaml:"compact"`     // one row per entry; false gives each a name and a size line
+	Compact    bool `yaml:"compact"`     // one row per entry; false adds a size line
 	ShowHidden bool `yaml:"show_hidden"` // list dot files (--all turns them on for one run)
 }
 
-// DefaultConfig is what a missing ~/.gofer/config.yml means, and — since EnsureConfig
-// writes exactly this — what a fresh one says. Compact is on: a listing is something you
-// scan down, and one row an entry is what makes that reading rather than scrolling. The
-// standard rows are a deliberate choice you make with alt+r or this key.
+const configName = "config.yml"
+
+// DefaultConfig is what a missing config means, and what EnsureConfig writes.
 func DefaultConfig() Config { return Config{Compact: true} }
 
-// Dir is ~/.gofer, gofer's config home. The ~/.<app> convention itself is
-// goutil/configdir's; this pins gofer's own name.
-func Dir() (string, error) {
-	return configdir.Dir("gofer")
-}
+// Dir is ~/.gofer.
+func Dir() (string, error) { return configdir.Dir("gofer") }
 
-// ConfigPath is ~/.gofer/config.yml — what LoadConfig reads, SaveConfig writes, and
-// `gofer config` opens.
+// ConfigPath is ~/.gofer/config.yml.
 func ConfigPath() (string, error) {
 	dir, err := Dir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "config.yml"), nil
+	return filepath.Join(dir, configName), nil
 }
 
-// EnsureConfig returns the config path, materializing a defaults file first when none
-// exists. `gofer config` on a fresh install should open the real schema to edit, not an
-// empty buffer that gives no hint what belongs in it.
+// EnsureConfig returns the config path, writing the defaults first when it is missing, so
+// `gofer config` opens the real schema rather than an empty buffer.
 func EnsureConfig() (string, error) {
-	path, err := ConfigPath()
+	dir, err := Dir()
 	if err != nil {
 		return "", err
 	}
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if err := SaveConfig(DefaultConfig()); err != nil {
-			return "", err
-		}
+	if _, err := configdir.Ensure(dir, configName, DefaultConfig()); err != nil {
+		return "", err
 	}
-	return path, nil
+	return filepath.Join(dir, configName), nil
 }
 
-// LoadConfig reads ~/.gofer/config.yml. A missing file is not an error — it returns the
-// defaults; a malformed one returns the parse error alongside them.
-//
-// The load runs OVER DefaultConfig(), and that is load-bearing rather than tidy: Compact
-// defaults to true, so the zero Config is not the default Config. Unmarshalling into a
-// fresh struct would make a file that sets only show_hidden silently turn the density off,
-// because "absent" and "false" are the same thing in YAML.
+// LoadConfig reads the config over DefaultConfig so absent keys keep their defaults. A
+// missing file is not an error; a malformed one returns the defaults and the parse error.
 func LoadConfig() (Config, error) {
 	cfg := DefaultConfig()
 	path, err := ConfigPath()
@@ -70,19 +51,16 @@ func LoadConfig() (Config, error) {
 		return cfg, err
 	}
 	if err := configdir.Load(path, &cfg); err != nil {
-		// A half-parsed config is worse than none: rebuild the defaults rather than
-		// returning whatever the failing unmarshal happened to have written.
 		return DefaultConfig(), err
 	}
 	return cfg, nil
 }
 
-// SaveConfig writes the complete gofer config atomically — a failed write cannot truncate a
-// working config. The atomic-write mechanics are goutil/configdir's.
+// SaveConfig writes the whole config atomically.
 func SaveConfig(cfg Config) error {
 	dir, err := Dir()
 	if err != nil {
 		return err
 	}
-	return configdir.SaveAtomic(dir, "config.yml", cfg)
+	return configdir.SaveAtomic(dir, configName, cfg)
 }

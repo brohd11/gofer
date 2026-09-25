@@ -9,29 +9,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// The wrapper functions below are the reason this command exists: a program cannot change
-// its parent shell's directory, so gofer writes the folder it quit in to $GOFER_CD_FILE and
-// a shell function does the cd. Printing that function rather than documenting it means an
-// rc file carries one line — eval "$(gofer func zsh)" — and the wrapper travels with the
-// binary instead of going stale in someone's dotfiles.
-//
-// This is the single source of truth for that text. README.md, rootCmd.Long and
-// install.sh's post_install_note all point here rather than pasting their own copies.
+// A program cannot change its parent shell's directory, so gofer writes the folder it quit in
+// to $GOFER_CD_FILE and a shell wrapper does the cd. Printing the wrapper keeps it in step
+// with the binary: eval "$(gofer func zsh)". This is the single source of that text.
 
-// posixWrapper serves bash and zsh, which need no variations between them.
-//
-// Every line is load-bearing:
-//
-//   - `command gofer` keeps the function from calling itself, and is also the documented
-//     way to bypass the wrapper for one run.
-//   - The variable is `ret` and not `status` because zsh reserves `status` as a read-only
-//     alias for $?.
-//   - `return "$ret"` is not optional. The cd line is a test that fails whenever there is
-//     nowhere to go, so without it the function would report failure after every browse
-//     that stayed put — and would swallow a real error from `gofer update`.
-//   - The environment variable, rather than --cd-file, is what lets the wrapper be
-//     unconditional: it is invisible to argv, so `gofer config` and the rest pass straight
-//     through. See cdFileEnv in root.go.
+// posixWrapper serves bash and zsh. `command gofer` bypasses the function; the variable is
+// `ret` because zsh reserves `status`; `return "$ret"` keeps the cd test from masking gofer's
+// own exit status. The env var (not --cd-file) keeps argv untouched for subcommands.
 const posixWrapper = `gofer() {
   local tmp dir ret
   tmp="$(mktemp -t gofer-cd)"
@@ -43,15 +27,9 @@ const posixWrapper = `gofer() {
 }
 `
 
-// fishWrapper is the same function in fish's syntax, which shares none of the above:
-// `function ... end`, `set -l` for locals, $argv for "$@".
-//
-// `env` rather than `command`: it execs the real binary, so it dodges this function exactly
-// as `command` does in a POSIX shell, and unlike fish's own VAR=value prefix it does not
-// need fish 3.1. `set -l ret $status` must sit immediately after the call — anything in
-// between would overwrite $status. The cd needs no `--` guard because gofer only ever
-// writes an absolute path, and fish does not word-split a variable, so a path with spaces
-// survives unquoted.
+// fishWrapper is the fish version. `env` execs the real binary like `command` does (without
+// needing fish 3.1); `set -l ret $status` must directly follow the call. gofer writes an
+// absolute path and fish does not word-split, so the cd needs no quoting or `--`.
 const fishWrapper = `function gofer
   set -l tmp (mktemp -t gofer-cd)
   env ` + cdFileEnv + `=$tmp gofer $argv
@@ -103,9 +81,7 @@ func init() {
 	rootCmd.AddCommand(funcCmd)
 }
 
-// runFunc writes the wrapper and nothing else: the output is eval'd, so a stray banner
-// would be executed. OutOrStdout rather than fmt.Print for the same reason the tests need
-// it — the destination has to be substitutable.
+// runFunc writes the wrapper and nothing else: the output is eval'd.
 func runFunc(cmd *cobra.Command, args []string) error {
 	arg := ""
 	if len(args) > 0 {
@@ -123,10 +99,8 @@ func runFunc(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// resolveShell names the shell to print for: what was typed, otherwise the basename of
-// $SHELL. It does not judge the name — wrapperFor does that, so an unrecognized $SHELL and
-// an unrecognized argument fail the same way — but it does report the case where there is
-// no name to judge at all, since "unknown shell" would be a lie there.
+// resolveShell returns the typed shell, else $SHELL's basename. wrapperFor judges the name;
+// this only errors when there is no name at all.
 func resolveShell(arg, shellEnv string) (string, error) {
 	if s := strings.ToLower(strings.TrimSpace(arg)); s != "" {
 		return s, nil

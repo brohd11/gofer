@@ -38,25 +38,6 @@ func TestWriteCDFileUnset(t *testing.T) {
 	}
 }
 
-// TestShortHome: the breadcrumb reads paths the way a shell prompt does, and leaves alone
-// what it cannot shorten.
-func TestShortHome(t *testing.T) {
-	home := "/Users/x"
-	for _, tt := range []struct{ in, want string }{
-		{"/Users/x", "~"},
-		{filepath.Join(home, "main", "go"), filepath.Join("~", "main", "go")},
-		{"/etc", "/etc"},
-		{"/Users/xylophone", "/Users/xylophone"}, // a prefix is not a parent
-	} {
-		if got := shortHome(tt.in, home); got != tt.want {
-			t.Errorf("shortHome(%q) = %q, want %q", tt.in, got, tt.want)
-		}
-	}
-	if got := shortHome("/etc", ""); got != "/etc" {
-		t.Errorf("no home should leave the path alone, got %q", got)
-	}
-}
-
 // TestCDFileFollowsTheBrowse joins the two halves: the panel moves the ctx as you walk, and
 // the ctx is what the cd file is written from after the program exits. That seam is the
 // whole feature, and each half passing on its own would not prove it.

@@ -5,33 +5,20 @@ import (
 
 	"github.com/brohd11/bubblestack/components"
 	"github.com/brohd11/bubblestack/core"
+	"github.com/brohd11/goutil/strutil"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 )
 
-// The screen's own keys. The Actions picker is not among them — that binding is shared by
-// every app on the framework and lives in core.Keys. The bare ones here are intercepted
-// only when nothing is capturing (see Update), so a /-filter never loses a character to
-// them; densityKey is the panel's own and carries a modifier, alt+r rather than alt+d/f —
-// the sibling apps' editor moves by words on those, and the chords should not mean two
-// things across the monorepo.
+// The screen's own keys, intercepted only when nothing is capturing. densityKey is alt+r
+// because alt+d/f move by words in the editors.
 var (
 	hiddenKey  = key.NewBinding(key.WithKeys("."), key.WithHelp(".", "show or hide dot files"))
 	densityKey = key.NewBinding(key.WithKeys("alt+r"), key.WithHelp("alt+r", "row density"))
-	// The two folder keys, both under the left hand beside the alt+w/a/s/d nav scheme
-	// core.Keys already carries. They are bare letters because a browse is a two-handed
-	// gesture at most, and a modifier on the key you press most would be a tax.
-	//
-	// Not the arrows: core.StyleList binds core.Keys.Left/Right to every list's
-	// PrevPage/NextPage, and those are the framework's ONLY pagination keys — claiming
-	// them here would cost this panel its page-flipping to buy a second way to do what d
-	// and x already do.
-	//
-	// x is core.Keys.NextTab's second keycode, which is free here and only here: the
-	// router's switchTab is a no-op below two tabs and reports the key unhandled
-	// (router_keys.go), so in single-tab gofer it falls through to the panel. A second tab
-	// would take it back — the one thing to remember before adding one.
+	// d and x are bare letters for the most-used keys. The arrows are the lists' only
+	// pagination keys. x is also core.Keys.NextTab, which the router ignores with one tab;
+	// adding a second tab would take it back.
 	descendKey = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "into the folder under the cursor"))
 	upKey      = key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "up a folder"))
 	// alt+? is the modified alias that summons the page from anywhere, the capture gate
@@ -39,19 +26,9 @@ var (
 	helpKey = key.NewBinding(key.WithKeys("?", "alt+?"), key.WithHelp("?", "more"))
 )
 
-// browseScreen is gofer's only screen: one components.FilePanel in a one-slot
-// ModularScreen. The shell around the panel exists for the three things a layout host
-// cannot answer for a directory that MOVES —
-//
-//   - DirLocator, so the global terminal/open-dir keys act on the folder on screen rather
-//     than the one gofer was launched in (ModularOpts.Dir is a fixed string);
-//   - Crumber, so the bar above the panel carries the full path the panel's border legend
-//     only shows the base name of;
-//   - the ctx's Dir, which is what the cd file records after the program exits.
-//
-// ModularScreen rather than hosting the panel bare: it already translates mouse presses to
-// pane-local coordinates (which is what the panel's click math expects), composes the help
-// bar from PanelHelp, and holds focus. One slot is a legal grid.
+// browseScreen is gofer's only screen: a FilePanel in a one-slot ModularScreen. It adds
+// DirLocator (global keys act on the folder on screen), Crumber (the full path in the
+// breadcrumb) and Ctx.Dir tracking for the cd file.
 type browseScreen struct {
 	modular *components.ModularScreen
 	panel   *components.FilePanel
@@ -82,14 +59,10 @@ func NewBrowseScreen(sh *core.Shared) core.Screen {
 		Compact:    c.Compact,
 		DensityKey: densityKey,
 		Include:    c.include,
-		// x rather than the component's default backspace, which was doing double duty:
-		// backspace is one of core.Keys.Back's keycodes, and the panel could only claim it
-		// by handing it back at the floor. gote still takes the default — it sets no UpKey.
+		// x rather than backspace, which is also core.Keys.Back.
 		UpKey:    upKey,
 		OnSelect: s.pickFile,
-		// A folder gets what a file gets: enter raises its menu rather than walking, which
-		// is what d is for. handled=false is what still lets the panel walk, and pickDir
-		// uses that for the ".." row.
+		// Enter on a folder raises its menu; pickDir returns unhandled for "..".
 		OnOpenDir: s.pickDir,
 		OnDir:     func(sh *core.Shared, dir string) core.Action { Of(sh).Dir = dir; return core.Action{} },
 		OnError: func(_ *core.Shared, err error) core.Action {
@@ -100,9 +73,7 @@ func NewBrowseScreen(sh *core.Shared) core.Screen {
 	// as its allocation, but the flag costs nothing and keeps a ragged edge impossible.
 	s.modular = components.NewModularScreen(
 		[][]components.Slot{{{Panel: s.panel, Weight: 1, ExpandH: true}}},
-		// One entry on the bar, and it is the pointer at all the others: every key gofer has
-		// is written on the ? page, so the bar names the way in rather than reprinting a
-		// couple of them beside the framework's own back/select hints.
+		// The bar shows only "?"; every key is on the help page.
 		components.ModularOpts{Help: []key.Binding{helpKey}},
 	)
 	return s
@@ -113,26 +84,17 @@ func (s *browseScreen) Init(sh *core.Shared) tea.Cmd {
 	return s.modular.Init(sh)
 }
 
-// Update claims the screen's own keys, then delegates. Both are bare letters, so both are
-// gated on Filtering: a live /-query owns every character, and a screen that took one back
-// would eat it out of the search.
-//
-// The hidden toggle is a SCREEN key rather than the panel's OnKey hook, even though it only
-// concerns the panel: OnKey is typed to the entry under the cursor and reports unhandled on
-// the ".." row, which is exactly the row an unclamped explorer opens with. A view setting
-// must not depend on where the cursor happens to be.
+// Update claims the screen's own keys, gated on Filtering so a /-query keeps its
+// characters. The hidden toggle is a screen key because the panel's OnKey reports unhandled
+// on the ".." row.
 func (s *browseScreen) Update(sh *core.Shared, msg tea.Msg) (core.Screen, core.Action) {
-	// The editor had the terminal and has given it back. Re-read the folder: the file it
-	// just wrote is a different size, and on a standard-density row that number is on
-	// screen. Refresh keeps the cursor, so the user lands back on the row they edited.
+	// The editor returned the terminal: re-read the folder (sizes may have changed).
 	if m, ok := msg.(editorClosedMsg); ok {
 		s.panel.Refresh()
 		return s, core.SetStatus(m.name + " closed")
 	}
 	if km, ok := msg.(tea.KeyPressMsg); ok && km.String() == "alt+?" {
-		// The one key that outranks the capture gate: a modified chord produces no text, so
-		// taking it from a live filter costs the query nothing, and a help page you cannot
-		// reach while filtering is a help page you cannot reach when you most need it.
+		// A modified chord produces no text, so help stays reachable while filtering.
 		return s, core.Push(s.helpScreen())
 	}
 	if km, ok := msg.(tea.KeyPressMsg); ok && !s.modular.Filtering() {
@@ -151,13 +113,8 @@ func (s *browseScreen) Update(sh *core.Shared, msg tea.Msg) (core.Screen, core.A
 	return s, act
 }
 
-// descend walks into the folder under the cursor. On a file it does nothing — there is
-// nothing to descend into — and on the ".." row it walks up, since that row IS the parent
-// directory and "into whatever the cursor is on" is the whole rule.
-//
-// A SCREEN key rather than the panel's OnKey hook, for the reason the hidden toggle is one:
-// OnKey reports unhandled on the ".." row (FilePanelOpts.OnKey), which in an unclamped
-// explorer is the row you land on every time you walk up.
+// descend walks into the folder under the cursor; on ".." it walks up, on a file it does
+// nothing.
 func (s *browseScreen) descend(sh *core.Shared) core.Action {
 	e, ok := s.panel.Selected()
 	if !ok || !e.IsDir {
@@ -200,12 +157,10 @@ func (s *browseScreen) LocateDir() (string, bool) {
 	return Of(s.sh).Dir, true
 }
 
-// CrumbLabel names the current directory in the router's breadcrumb bar. Short and long are
-// the same string: the bar's own truncation is better than a second one here, and the
-// panel's border legend already carries the base name when the path is cut.
+// CrumbLabel names the current directory; short and long are the same string.
 func (s *browseScreen) CrumbLabel(bool) string {
 	if s.sh == nil {
 		return "gofer"
 	}
-	return shortHome(Of(s.sh).Dir, s.home)
+	return strutil.ContractHome(Of(s.sh).Dir, s.home)
 }

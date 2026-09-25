@@ -8,6 +8,7 @@ import (
 
 	"github.com/brohd11/bubblestack/components"
 	"github.com/brohd11/bubblestack/core"
+	"github.com/brohd11/goutil/strutil"
 
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
@@ -119,7 +120,7 @@ func TestBrowseWalks(t *testing.T) {
 	if dir, _ := s.LocateDir(); dir != sub {
 		t.Fatalf("LocateDir = %q, want the folder on screen %q", dir, sub)
 	}
-	if crumb := s.CrumbLabel(false); crumb == "" || !hasRow([]string{crumb}, shortHome(sub, s.home)) {
+	if crumb := s.CrumbLabel(false); crumb == "" || !hasRow([]string{crumb}, strutil.ContractHome(sub, s.home)) {
 		t.Fatalf("CrumbLabel = %q, want the current directory", crumb)
 	}
 	if rows := rowTitles(s.panel.List()); !hasRow(rows, "..") || !hasRow(rows, "deep.txt") {

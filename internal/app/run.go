@@ -10,23 +10,10 @@ import (
 	"github.com/brohd11/bubblestack/sysopen"
 )
 
-// Run launches the gofer TUI over the resolved start directory and, on a clean exit, hands
-// the directory the user quit in to opts.CDFile.
-//
-// The write happens HERE, after bubblestack.Run returns, because that is the only seam
-// there is: Run gives back an error and nothing else, so the finishing directory has to
-// come off the context we built and still hold. It is also the right place — a program
-// that failed leaves the file untouched, so the shell wrapper reads nothing and stays
-// where it was rather than following a crash somewhere unexpected.
-//
-// One tab, so bubblestack draws no tab strip; a status line for feedback (the hidden-files
-// toggle, a self-update note); no header or output pane. The breadcrumb carries the current
-// path, which is the only persistent chrome a file explorer actually needs.
+// Run launches the gofer TUI and, on a clean exit, writes the final directory to
+// opts.CDFile. A failed run leaves the file untouched so the shell stays put.
 func Run(version string, opts Options) error {
-	// Materialized before the load, and best-effort: the file is where the schema is
-	// documented, so a user who never runs `gofer config` should still end up with one to
-	// read. A failed write (a read-only home) is not a reason to refuse to start, and
-	// LoadConfig treats the still-missing file as the defaults anyway.
+	// Best-effort: the file documents the schema, and LoadConfig falls back to defaults.
 	_, _ = EnsureConfig()
 	cfg, err := LoadConfig()
 	if err != nil {
@@ -51,20 +38,12 @@ func Run(version string, opts Options) error {
 	return writeCDFile(opts.CDFile, c.Dir)
 }
 
-// refreshAction is the global Refresh key and the Actions menu's Refresh row: rebuild the
-// tab root, which rebuilds the panel over Ctx.Dir and so re-reads the folder from disk.
-// Going through RefreshRoots rather than reaching for the live panel is what keeps this a
-// package-level function the menu can hold without a screen.
+// refreshAction rebuilds the tab root, which re-reads Ctx.Dir from disk.
 func refreshAction(sh *core.Shared) core.Action {
 	return core.Seq(core.SetStatus("re-read "+filepath.Base(Of(sh).Dir)), core.RefreshRoots())
 }
 
-// writeCDFile records dir for a shell wrapper to cd into. An empty path means neither
-// $GOFER_CD_FILE nor --cd-file named one, and there is nothing to do — the case for every
-// run that is not inside the wrapper function.
-//
-// 0o600 rather than 0o644: the file names a directory the user was just browsing, it lives
-// wherever mktemp put it, and nothing else has any business reading it.
+// writeCDFile records dir for the shell wrapper (0o600). An empty path is a no-op.
 func writeCDFile(path, dir string) error {
 	if path == "" {
 		return nil
